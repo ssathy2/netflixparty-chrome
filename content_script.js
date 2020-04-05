@@ -120,48 +120,38 @@
     // video duration in milliseconds
     var lastDuration = 60 * 60 * 1000;
     var getDuration = function() {
-      var video = jQuery('.player-video-wrapper video');
+      var video = document.getElementsByTagName('video');
       if (video.length > 0) {
         lastDuration = Math.floor(video[0].duration * 1000);
       }
       return lastDuration;
     };
 
-    // 'playing', 'paused', 'loading', or 'idle'
+    // 'playing', 'paused', 'loading'
+    // TODO: Get loading state
     var getState = function() {
-      if (jQuery('.timeout-wrapper.player-active .icon-play').length > 0) {
-        return 'idle';
-      }
-      if (jQuery('.player-progress-round.player-hidden').length === 0) {
+      if (jQuery('#id-loading-animation')[0].attributes['hidden']['value'] === "false") {
+        console.log('loading');
         return 'loading';
       }
-      if (jQuery('.player-control-button.player-play-pause.play').length === 0) {
-        return 'playing';
-      } else {
+      if (jQuery('#id-play-pause-button')[0].attributes['aria-label']['value'] === "play") {
+        console.log('paused');
         return 'paused';
+      } else {
+        console.log('playing');
+        return 'playing';
       }
     };
 
     // current playback position in milliseconds
     var getPlaybackPosition = function() {
-      return Math.floor(jQuery('.player-video-wrapper video')[0].currentTime * 1000);
-    };
-
-    // wake up from idle mode
-    var wakeUp = function() {
-      uiEventsHappening += 1;
-      jQuery('.timeout-wrapper.player-active .icon-play').click();
-      return delayUntil(function() {
-        return getState() !== 'idle';
-      }, 2500)().ensure(function() {
-        uiEventsHappening -= 1;
-      });
+      return Math.floor(document.getElementsByTagName('video')[0].currentTime * 1000);
     };
 
     // show the playback controls
     var showControls = function() {
       uiEventsHappening += 1;
-      var scrubber = jQuery('#scrubber-component');
+      var scrubber = jQuery(`#${scrubberName}`);
       var eventOptions = {
         'bubbles': true,
         'button': 0,
@@ -178,7 +168,7 @@
     // hide the playback controls
     var hideControls = function() {
       uiEventsHappening += 1;
-      var player = jQuery('#netflix-player');
+      var player = jQuery(`#${containerName}`);
       var mouseX = 100; // relative to the document
       var mouseY = 100; // relative to the document
       var eventOptions = {
@@ -203,7 +193,7 @@
     // pause
     var pause = function() {
       uiEventsHappening += 1;
-      jQuery('.player-play-pause.pause').click();
+      document.getElementsByTagName('video')[0].pause()
       return delayUntil(function() {
         return getState() === 'paused';
       }, 1000)().then(hideControls).ensure(function() {
@@ -214,7 +204,7 @@
     // play
     var play = function() {
       uiEventsHappening += 1;
-      jQuery('.player-play-pause.play').click();
+      document.getElementsByTagName('video')[0].play()
       return delayUntil(function() {
         return getState() === 'playing';
       }, 2500)().then(hideControls).ensure(function() {
@@ -226,9 +216,9 @@
     var freeze = function(milliseconds) {
       return function() {
         uiEventsHappening += 1;
-        jQuery('.player-play-pause.pause').click();
+        jQuery('#id-play-pause-button').click();
         return delay(milliseconds)().then(function() {
-          jQuery('.player-play-pause.play').click();
+          jQuery('#id-play-pause-button').click();
         }).then(hideControls).ensure(function() {
           uiEventsHappening -= 1;
         });
@@ -244,7 +234,7 @@
         var eventOptions, scrubber, oldPlaybackPosition, newPlaybackPosition;
         return showControls().then(function() {
           // compute the parameters for the mouse events
-          scrubber = jQuery('#scrubber-component');
+          scrubber = jQuery(`#${scrubber-component}`);
           var factor = (milliseconds - seekErrorMean) / getDuration();
           factor = Math.min(Math.max(factor, 0), 1);
           var mouseX = scrubber.offset().left + Math.round(scrubber.width() * factor); // relative to the document
@@ -296,7 +286,7 @@
     //////////////////////////////////////////////////////////////////////////
 
     // connection to the server
-    var socket = io('https://netflixparty-server.herokuapp.com');
+    var socket = io('https://arcane-lake-39458.herokuapp.com');
 
     // get the userId from the server
     var userId = null;
@@ -327,10 +317,12 @@
     var chatMessageVerticalPadding = 8;
     var presenceIndicatorHeight = 30;
 
+    var containerName = "ytu-app-vessel"
+    var scrubberName = "id-scrub-slider"
     // this is the markup that needs to be injected onto the page for chat
     var chatHtml = `
       <style>
-        #netflix-player.with-chat {
+        #${containerName}.with-chat {
           width: calc(100% - ${chatSidebarWidth}px) !important;
         }
 
@@ -476,7 +468,7 @@
     // set up the chat state, or reset the state if the system has already been set up
     var initChat = function() {
       if (jQuery('#chat-container').length === 0) {
-        jQuery('#netflix-player').after(chatHtml);
+        jQuery(`#${containerName}`).after(chatHtml);
         jQuery('#presence-indicator').hide();
         var oldPageX = null;
         var oldPageY = null;
@@ -542,20 +534,20 @@
 
     // query whether the chat sidebar is visible
     var getChatVisible = function() {
-      return jQuery('#netflix-player').hasClass('with-chat');
+      return jQuery(`#${containerName}`).hasClass('with-chat');
     };
 
     // show or hide the chat sidebar
     var setChatVisible = function(visible) {
       if (visible) {
-        jQuery('#netflix-player').addClass('with-chat');
+        jQuery(`#${containerName}`).addClass('with-chat');
         jQuery('#chat-container').show();
         if (!document.hasFocus()) {
           clearUnreadCount();
         }
       } else {
         jQuery('#chat-container').hide();
-        jQuery('#netflix-player').removeClass('with-chat');
+        jQuery(`#${containerName}`).removeClass('with-chat');
       }
     };
 
@@ -756,11 +748,7 @@
         tasks = Promise.resolve();
       }
       tasksInFlight += 1;
-      tasks = tasks.then(function() {
-        if (getState() === 'idle') {
-          swallow(wakeUp)();
-        }
-      }).then(swallow(task)).then(function() {
+      tasks = tasks.then(swallow(task)).then(function() {
         tasksInFlight -= 1;
       });
     };
@@ -786,7 +774,10 @@
       pushTask(ping);
       setInterval(function() {
         if (tasksInFlight === 0) {
-          var newVideoId = parseInt(window.location.href.match(/^.*\/([0-9]+)\??.*/)[1]);
+          var paths = window.location.pathname.split('/')
+          var lastPathComponent = paths[paths.length-1]
+          console.log(lastPathComponent)
+          var newVideoId = parseInt(lastPathComponent);
           if (videoId !== null && videoId !== newVideoId) {
             videoId = newVideoId;
             sessionId = null;
@@ -840,7 +831,7 @@
             videoId: request.data.videoId
           }, function(data) {
             initChat();
-            setChatVisible(true);
+            setChatVisible(false);
             lastKnownTime = data.lastKnownTime;
             lastKnownTimeUpdatedAt = new Date(data.lastKnownTimeUpdatedAt);
             messages = [];

@@ -1,13 +1,13 @@
 'use strict';
 
-// only load for URLs that match www.netflix.com/watch/*
+// only load for URLs that match tv.youtube.com/watch/*
 chrome.runtime.onInstalled.addListener(function(details) {
   chrome.declarativeContent.onPageChanged.removeRules(undefined, function() {
     chrome.declarativeContent.onPageChanged.addRules([{
       conditions: [
         new chrome.declarativeContent.PageStateMatcher({
           pageUrl: {
-            hostEquals: 'www.netflix.com',
+            hostEquals: 'tv.youtube.com',
             pathPrefix: '/watch/',
             schemes: ['http', 'https']
           }
